@@ -1,0 +1,17 @@
+{
+  "name": "dark-library",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "build": "astro build",
+    "start": "HOST=127.0.0.1 node dist/server/entry.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "instagram:login": ".venv/bin/python scripts/login.py"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.1.5",
+    "astro": "^7.3.1",
+    "node": "^22.22.0"
+  }
+}
