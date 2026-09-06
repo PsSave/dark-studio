@@ -31,7 +31,7 @@ function render(){
   const content=element('div','','card-content');content.append(element('span',labels[v.status],`status ${v.status}`),element('h3',`@${v.profile}`),element('p',v.caption||'Publicação sem legenda.','caption'),element('small',new Date(/Z$|[+-]\d{2}:\d{2}$/.test(v.published)?v.published:v.published+'Z').toLocaleDateString('pt-BR')));
   if(v.error)content.append(element('p',v.error,'error'));
   const actions=element('div','','actions'), source=document.createElement('a');source.textContent='Ver original ↗';source.href=v.source;source.target='_blank';source.rel='noopener noreferrer';actions.append(source);
-  if(v.status==='downloaded'){const download=document.createElement('a');download.textContent='↓ Baixar vídeo';download.href=`/api/media?id=${encodeURIComponent(v.id)}&download=1`;actions.append(download);const edit=document.createElement('a');edit.textContent='✂ Recortar';edit.href=`/editor?video=${encodeURIComponent(v.id)}`;actions.append(edit);}content.append(actions);card.append(content);grid.append(card);
+  if(v.status==='downloaded'){const download=document.createElement('a');download.textContent='↓ Baixar vídeo';download.href=`/api/media?id=${encodeURIComponent(v.id)}&download=1`;actions.append(download);const edit=document.createElement('a');edit.textContent='✂ Abrir editor';edit.href=`/editor?video=${encodeURIComponent(v.id)}`;actions.append(edit);}content.append(actions);card.append(content);grid.append(card);
  }
 }
 async function refresh(){try{const response=await fetch('/api/library');if(!response.ok)throw Error('Não foi possível atualizar a biblioteca.');library=await response.json();render();}catch(e){$('#feedback').textContent=e.message;}}

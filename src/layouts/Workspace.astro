@@ -3,7 +3,7 @@ import '../styles/workspace.css';
 const {title,section,module}=Astro.props;
 ---
 <!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width"/><title>Dark Studio · {title}</title></head><body>
-<aside><a class="brand" href="/">◧ <span>DARK<span class="light">STUDIO</span></span></a><div class="navlabel">SEU WORKSPACE</div><nav aria-label="Módulos"><a class:list={['nav',{active:section==='library'}]} href="/">▦ &nbsp; Biblioteca de referência</a><a class:list={['nav',{active:section==='editor'}]} href="/editor">✂ &nbsp; Editor de recortes</a></nav><div class="aside-footer"><span class="dot"></span> Armazenamento local<br/><small>Seus arquivos, no seu computador.</small></div></aside>
+<aside><a class="brand" href="/">◧ <span>DARK<span class="light">STUDIO</span></span></a><div class="navlabel">SEU WORKSPACE</div><nav aria-label="Módulos"><a class:list={['nav',{active:section==='library'}]} href="/">▦ &nbsp; Biblioteca de referência</a><a class:list={['nav',{active:section==='editor'}]} href="/editor">✂ &nbsp; Editor</a></nav><div class="aside-footer"><span class="dot"></span> Armazenamento local<br/><small>Seus arquivos, no seu computador.</small></div></aside>
 <main><header><div class="breadcrumb">Workspace <span>/</span> {title}</div><span class="pill">MÓDULO {module}</span></header><slot/><footer>Dark Studio <span>Acervo e edição local · Instagram</span></footer></main>
 <style is:global>@media(max-width:720px){aside nav{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}aside nav .nav{display:block;padding:9px 12px;font-size:13px}}.actions{flex-wrap:wrap}</style>
 </body></html>

@@ -24,13 +24,15 @@ O Chromium abre em segundo plano. A coleta fecha convites de login que tenham bo
 
 Os arquivos ficam em `.data/media/`, e o histórico em `.data/library.sqlite`. Tracks de áudio e vídeo separados são reunidos pelo ffmpeg sem recodificação. O ffprobe verifica o vídeo recebido antes de marcá-lo como concluído. Downloads e sessões nunca entram no Git.
 
-## Editor de recortes (módulo 2)
+## Editor local (módulo 2 em desenvolvimento)
 
-Abra **Editor de recortes** na navegação ou **Recortar** em um vídeo do acervo. Selecione o vídeo, escolha início e fim em segundos ou pelos controles deslizantes e use **Reproduzir trecho** para conferir a seleção. Os botões de marcação usam a posição atual do player. Dê um nome ao recorte e, se desejar, marque a opção de remover áudio antes de exportar.
+Abra **Editor** na navegação ou **Abrir editor** em um vídeo da biblioteca. Desenhe um retângulo sobre a imagem, mova a seleção e ajuste os cantos. Os campos de posição e tamanho em pixels permitem ajustes precisos. A prévia mostra apenas a área selecionada, mantendo toda a duração do vídeo.
 
-A exportação gera um novo MP4, com progresso e histórico no painel. Apenas uma exportação roda por vez. Depois de concluída, use **Ver** para reproduzir ou **Baixar** para salvar outra cópia. **Abrir ajuste** recupera as configurações para uma nova exportação. Os ajustes ainda não exportados são lembrados neste navegador, por vídeo.
+Use **Salvar seleção** para guardar um modelo neste navegador com o nome informado. Ao aplicar em outro vídeo, a área é adaptada proporcionalmente às dimensões da imagem; confira e ajuste antes de exportar. O modelo não identifica o gameplay automaticamente nem acompanha objetos em movimento.
 
-Os recortes ficam em `.data/clips/` e seu histórico em `.data/library.sqlite`. Os vídeos originais são preservados. O FFmpeg recodifica o trecho em H.264, mantendo a resolução com dimensões pares e áudio AAC quando solicitado; o ffprobe verifica o resultado. O ZIP da biblioteca continua contendo os originais do acervo. Este módulo oferece recorte temporal e áudio opcional; montagem de vários trechos, reprodução automática de estilos, legendas e publicação ficam para as próximas etapas.
+**Exportar vídeo** cria um MP4 novo, com áudio opcional, preservando o original. Os recortes ficam em `.data/clips/`, com histórico em `.data/library.sqlite`. A exportação usa dimensões e coordenadas pares, ajustando no máximo um pixel para compatibilidade. O ZIP da biblioteca contém os originais. Na seção **Templates de composição**, importe uma arte PNG, JPG ou WebP de até 20 MB. Ela é preparada em 1080 × 1920 sem distorção, com margens quando necessário. O gameplay ocupa o espaço retangular que você desenha, move e redimensiona. A ordem padrão é **Arte por cima · vídeo por trás**: preserve transparência no PNG para abrir a janela do vídeo. Assim a moldura pode cobrir as bordas do gameplay. Também há a opção de colocar o vídeo por cima da arte. Use **Preencher** para ocupar todo o espaço cortando sobras, ou **Mostrar tudo** para preservar o recorte inteiro com margens pretas.
+
+**Salvar template** guarda nome, imagem e encaixe no computador, em `.data/templates/` e no SQLite. Escolha esse template nos próximos vídeos para reutilizá-lo. A prévia mostra a composição durante a reprodução; **Exportar composição** gera o MP4 vertical completo. **Sem template** volta a exportar apenas o recorte. As configurações usadas ficam registradas em cada exportação. Não há integração de conta Canva: envie a imagem exportada de lá. Esta versão usa uma arte estática e um espaço retangular, sem deformação de perspectiva. O canal alfa da arte permite bordas e janelas de formatos irregulares.
 
 ## Testes
 

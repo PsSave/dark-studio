@@ -1,6 +1,7 @@
 """Persistent local clip exports, with validated ranges and accurate re-encoding."""
 import json, math, os, re, signal, sqlite3, subprocess, sys, uuid, time
 from pathlib import Path
+import templates
 from datetime import datetime, timezone
 ROOT=Path(__file__).resolve().parents[1]
 DATA=ROOT/'.data'
@@ -13,6 +14,12 @@ def connect():
         status TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0,
         filename TEXT, error TEXT NOT NULL DEFAULT '', pid INTEGER,
         created TEXT NOT NULL, duration REAL, size INTEGER)''');db.commit()
+    columns={r[1] for r in db.execute('PRAGMA table_info(clips)')}
+    for name in ('crop_x','crop_y','crop_w','crop_h'):
+        if name not in columns: db.execute(f'ALTER TABLE clips ADD COLUMN {name} INTEGER')
+    if 'template_json' not in columns: db.execute('ALTER TABLE clips ADD COLUMN template_json TEXT')
+    db.commit()
+    templates.initialize(db)
     return db
 
 def probe(file):
@@ -42,6 +49,15 @@ def validate(payload,duration):
     if type(muted) is not bool: raise ValueError('Opção de áudio inválida.')
     return max(0,start),min(end,duration),title.strip(),muted
 
+def validate_crop(crop,meta):
+    if not isinstance(crop,dict): raise ValueError('Selecione uma área da imagem.')
+    values=[crop.get(k) for k in ('x','y','width','height')]
+    if any(type(v) is not int for v in values): raise ValueError('As medidas da seleção devem ser números inteiros.')
+    x,y,w,h=values
+    if x<0 or y<0 or w<2 or h<2 or x+w>meta['width'] or y+h>meta['height']:
+        raise ValueError('A seleção deve ficar dentro da imagem e ter pelo menos 2 pixels por lado.')
+    return x-x%2,y-y%2,w-w%2,h-h%2
+
 def recover(db):
     for row in db.execute("SELECT id,pid FROM clips WHERE status='rendering'").fetchall():
         if row['pid']:
@@ -58,9 +74,17 @@ def create(db,payload):
         if db.execute("SELECT 1 FROM clips WHERE status='rendering'").fetchone(): raise ValueError('Aguarde a exportação em andamento terminar.')
         if not isinstance(payload,dict) or not isinstance(payload.get('sourceId'),str): raise ValueError('Selecione um vídeo do acervo.')
         row,file=source(db,payload['sourceId']);meta=probe(file)
+        crop=validate_crop(payload['crop'],meta) if 'crop' in payload else None
+        if crop: payload={**payload,'start':0,'end':meta['duration']}
         start,end,title,muted=validate(payload,meta['duration'])
+        template=templates.snapshot(db,DATA,payload['template']) if payload.get('template') else None
+        if template and not crop: raise ValueError('Selecione a área do vídeo antes de aplicar um template.')
         clip_id=uuid.uuid4().hex
         db.execute('INSERT INTO clips (id,source_id,title,start,end,muted,status,filename,created) VALUES (?,?,?,?,?,?,?,?,?)',(clip_id,row['id'],title,start,end,int(muted),'rendering',f'{clip_id}.mp4',datetime.now(timezone.utc).isoformat()));db.commit()
+        if template:
+            db.execute('UPDATE clips SET template_json=? WHERE id=?',(json.dumps(template),clip_id));db.commit()
+        if crop:
+            db.execute('UPDATE clips SET crop_x=?,crop_y=?,crop_w=?,crop_h=? WHERE id=?',(*crop,clip_id));db.commit()
         try:
             child=subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'render',clip_id],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
             db.execute('UPDATE clips SET pid=? WHERE id=?',(child.pid,clip_id));db.commit()
@@ -83,9 +107,24 @@ def render(db,clip_id):
         original,input_file=source(db,row['source_id']);meta=probe(input_file)
         start,end,_,muted=validate({'start':row['start'],'end':row['end'],'title':row['title'],'muted':bool(row['muted'])},meta['duration'])
         length=end-start
-        args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-ss',str(start),'-i',str(input_file),'-t',str(length),'-map','0:v:0']
+        template=json.loads(row['template_json']) if row['template_json'] else None
+        args=['ffmpeg','-hide_banner','-loglevel','error','-nostdin','-y','-ss',str(start),'-i',str(input_file)]
+        if template: args+=['-loop','1','-framerate','30','-i',str(templates.asset(DATA,template['filename']))]
+        args+=['-t',str(length),'-map','[composed]' if template else '0:v:0']
         args+=['-an'] if muted or not meta['hasAudio'] else ['-map','0:a:0?','-c:a','aac','-b:a','192k']
-        args+=['-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-vf','scale=trunc(iw/2)*2:trunc(ih/2)*2','-threads','2','-map_metadata','-1','-movflags','+faststart','-progress','pipe:1',str(partial)]
+        crop=validate_crop({'x':row['crop_x'],'y':row['crop_y'],'width':row['crop_w'],'height':row['crop_h']},meta) if row['crop_w'] is not None else None
+        video_filter=f'crop={crop[2]}:{crop[3]}:{crop[0]}:{crop[1]},setsar=1' if crop else 'scale=trunc(iw/2)*2:trunc(ih/2)*2'
+        if template:
+            templates.validate(template,template['width'],template['height'])
+            w,h=template['slot_w'],template['slot_h']
+            sizing=f'scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}' if template['fit']=='cover' else f'scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black'
+            graph=f'[0:v]{video_filter},{sizing},setsar=1,setpts=PTS-STARTPTS[game];[1:v]format=rgba,setsar=1,setpts=PTS-STARTPTS[art];'
+            if template.get('layer','front')=='behind':
+                graph+=f'[game]pad={template["width"]}:{template["height"]}:{template["x"]}:{template["y"]}:black[base];[base][art]overlay=0:0:shortest=1,format=yuv420p[composed]'
+            else: graph+=f'[art][game]overlay={template["x"]}:{template["y"]}:shortest=1,format=yuv420p[composed]'
+            args+=['-filter_complex_threads','2','-filter_complex',graph,'-r','30']
+        else: args+=['-vf',video_filter]
+        args+=['-c:v','libx264','-preset','fast','-crf','20','-pix_fmt','yuv420p','-threads','2','-map_metadata','-1','-movflags','+faststart','-progress','pipe:1',str(partial)]
         encoder=subprocess.Popen(args,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
         last=-1
         for line in encoder.stdout:
@@ -96,6 +135,7 @@ def render(db,clip_id):
                     db.execute('UPDATE clips SET progress=? WHERE id=?',(progress,clip_id));db.commit();last=progress
         if encoder.wait()!=0: raise ValueError('O processamento do recorte falhou. Confira o espaço em disco e tente novamente.')
         output=probe(partial)
+        if crop and (output['width'],output['height'])!=((template['width'],template['height']) if template else (crop[2],crop[3])): raise ValueError('A imagem exportada não corresponde à área selecionada.')
         if abs(output['duration']-length)>0.25: raise ValueError('A duração exportada não corresponde ao trecho selecionado.')
         if not muted and meta['hasAudio'] and not output['hasAudio']: raise ValueError('O áudio não foi preservado na exportação.')
         partial.replace(file)
@@ -114,6 +154,9 @@ if __name__=='__main__':
         command=sys.argv[1]
         if command=='state':
             recover(db);print(json.dumps({'clips':[dict(r) for r in db.execute('SELECT * FROM clips ORDER BY created DESC')]}))
+        elif command=='templates': print(json.dumps({'templates':[dict(r) for r in db.execute('SELECT * FROM templates ORDER BY rowid DESC')]}))
+        elif command=='template-upload': print(json.dumps(templates.upload(db,DATA,json.load(sys.stdin))))
+        elif command=='template-save': print(json.dumps(templates.save(db,json.load(sys.stdin))))
         elif command=='source':
             row,file=source(db,sys.argv[2]);print(json.dumps({**dict(row),**probe(file)}))
         elif command=='create': print(json.dumps(create(db,json.load(sys.stdin))))
