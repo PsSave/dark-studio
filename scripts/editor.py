@@ -17,6 +17,7 @@ def connect():
     columns={r[1] for r in db.execute('PRAGMA table_info(clips)')}
     for name in ('crop_x','crop_y','crop_w','crop_h'):
         if name not in columns: db.execute(f'ALTER TABLE clips ADD COLUMN {name} INTEGER')
+    if 'destination_json' not in columns: db.execute('ALTER TABLE clips ADD COLUMN destination_json TEXT')
     if 'template_json' not in columns: db.execute('ALTER TABLE clips ADD COLUMN template_json TEXT')
     db.commit()
     templates.initialize(db)
@@ -83,8 +84,15 @@ def create(db,payload,batch_context=None):
         start,end,title,muted=validate(payload,meta['duration'])
         template=templates.snapshot(db,DATA,payload['template']) if payload.get('template') else None
         if template and not crop: raise ValueError('Selecione a área do vídeo antes de aplicar um template.')
+        destination=None
+        if payload.get('saveToCreatives'):
+            import batches
+            batches.initialize(db)
+            destination=batches.destination(db,payload)
         clip_id=uuid.uuid4().hex
         db.execute('INSERT INTO clips (id,source_id,title,start,end,muted,status,filename,created) VALUES (?,?,?,?,?,?,?,?,?)',(clip_id,row['id'],title,start,end,int(muted),'rendering',f'{clip_id}.mp4',datetime.now(timezone.utc).isoformat()));db.commit()
+        if destination:
+            db.execute('UPDATE clips SET destination_json=? WHERE id=?',(json.dumps(destination),clip_id));db.commit()
         if template:
             db.execute('UPDATE clips SET template_json=? WHERE id=?',(json.dumps(template),clip_id));db.commit()
         if crop:
@@ -146,7 +154,11 @@ def render(db,clip_id):
         if abs(output['duration']-length)>0.25: raise ValueError('A duração exportada não corresponde ao trecho selecionado.')
         if not muted and meta['hasAudio'] and not output['hasAudio']: raise ValueError('O áudio não foi preservado na exportação.')
         partial.replace(file)
-        db.execute("UPDATE clips SET status='completed',progress=100,duration=?,size=?,error='' WHERE id=?",(output['duration'],file.stat().st_size,clip_id));db.commit()
+        db.execute("UPDATE clips SET status='completed',progress=100,duration=?,size=?,error='' WHERE id=?",(output['duration'],file.stat().st_size,clip_id))
+        if row['destination_json']:
+            import batches
+            batches.finish_creative(db,clip_id,json.loads(row['destination_json']))
+        db.commit()
     except Exception as error:
         partial.unlink(missing_ok=True)
         message=str(error) if isinstance(error,ValueError) else 'Não foi possível exportar o recorte. O vídeo original foi preservado.'

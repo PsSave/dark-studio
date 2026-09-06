@@ -114,3 +114,29 @@ def run(db,id):
                 db.execute("UPDATE batch_items SET status='failed',error=? WHERE batch_id=? AND source_id=?",(error,id,item['source_id']));db.commit()
         failed=db.execute("SELECT COUNT(*) FROM batch_items WHERE batch_id=? AND status!='completed'",(id,)).fetchone()[0]
         db.execute('UPDATE batches SET status=? WHERE id=?',('partial' if failed else 'completed',id));db.commit()
+
+
+def destination(db,payload):
+    target=payload.get('creativeTarget')
+    if not target:return {'new':True}
+    if not isinstance(target,dict):raise ValueError('Criativo inválido.')
+    item=db.execute('SELECT * FROM batch_items WHERE batch_id=? AND source_id=?',(target.get('batchId'),payload['sourceId'])).fetchone()
+    if not item or item['clip_id']!=target.get('expectedClipId'):raise ValueError('Este criativo mudou. Abra novamente pela tela de Criativos.')
+    if item['status']!='completed':raise ValueError('Aguarde este criativo ficar pronto antes de ajustar.')
+    return {'batchId':item['batch_id'],'sourceId':item['source_id'],'expectedClipId':item['clip_id']}
+
+def finish_creative(db,clip_id,target):
+    """Attach only finished outputs; old versions remain downloadable on failure."""
+    clip=db.execute('SELECT * FROM clips WHERE id=?',(clip_id,)).fetchone()
+    if not clip or clip['status']!='completed':raise ValueError('A exportação precisa estar pronta.')
+    if target.get('new'):
+        existing=db.execute('SELECT id FROM batches WHERE request_id=?',('clip:'+clip_id,)).fetchone()
+        if existing:return existing['id']
+        id=uuid.uuid4().hex
+        recipe={'template':json.loads(clip['template_json']) if clip['template_json'] else None,'muted':bool(clip['muted']),'manual':True}
+        db.execute('INSERT INTO batches VALUES (?,?,?,?,?,?,?)',(id,'clip:'+clip_id,clip['title'],json.dumps(recipe),'completed',None,clip['created']))
+        db.execute("INSERT INTO batch_items (batch_id,source_id,clip_id,status) VALUES (?,?,?,'completed')",(id,clip['source_id'],clip_id))
+        return id
+    changed=db.execute("UPDATE batch_items SET clip_id=?,approved=0,error='',status='completed' WHERE batch_id=? AND source_id=? AND clip_id=?",(clip_id,target['batchId'],clip['source_id'],target['expectedClipId']))
+    if not changed.rowcount:raise ValueError('O criativo foi atualizado em outra edição. A versão anterior foi preservada.')
+    return target['batchId']

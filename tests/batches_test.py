@@ -45,3 +45,27 @@ class BatchTest(unittest.TestCase):
 
     def test_scaled_crop_rejects_too_small(self):
         with self.assertRaises(ValueError):batches.scaled_crop({'x':0,'y':0,'width':.001,'height':.001},{'width':100,'height':100})
+
+    def test_manual_creative_and_individual_revision(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old=editor.DATA;editor.DATA=Path(tmp)
+            try:
+                db=editor.connect();batches.initialize(db)
+                for id in ('original','revised','failed'):
+                    db.execute('INSERT INTO clips (id,source_id,title,start,end,muted,status,filename,created) VALUES (?,?,?,?,?,?,?,?,?)',(id,'source','Meu vídeo',0,2,0,'failed' if id=='failed' else 'completed',id+'.mp4','today'))
+                batch=batches.finish_creative(db,'original',{'new':True});db.commit()
+                self.assertEqual(batches.finish_creative(db,'original',{'new':True}),batch)
+                db.execute("INSERT INTO batch_items VALUES (?,?,?,'completed','',1)",(batch,'other','untouched'))
+                batches.approve(db,{'batchId':batch,'sourceId':'source','approved':True})
+                target=batches.destination(db,{'sourceId':'source','creativeTarget':{'batchId':batch,'expectedClipId':'original'}})
+                with self.assertRaises(ValueError):batches.finish_creative(db,'failed',target)
+                self.assertEqual(db.execute("SELECT clip_id FROM batch_items WHERE source_id='source'").fetchone()[0],'original')
+                batches.finish_creative(db,'revised',target);db.commit()
+                item=db.execute("SELECT * FROM batch_items WHERE source_id='source'").fetchone()
+                self.assertEqual(item['clip_id'],'revised');self.assertEqual(item['approved'],0)
+                other=db.execute("SELECT * FROM batch_items WHERE source_id='other'").fetchone()
+                self.assertEqual(other['clip_id'],'untouched');self.assertEqual(other['approved'],1)
+                self.assertEqual(db.execute("SELECT status FROM clips WHERE id='original'").fetchone()[0],'completed')
+                with self.assertRaises(ValueError):batches.destination(db,{'sourceId':'source','creativeTarget':{'batchId':batch,'expectedClipId':'original'}})
+                db.close()
+            finally:editor.DATA=old
