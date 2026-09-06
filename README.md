@@ -1,4 +1,4 @@
-# Dark Studio — biblioteca local
+# Dark Studio — biblioteca e editor local
 
 Painel Astro para cadastrar um perfil do Instagram e coletar Reels públicos pelo navegador. O coletor usa Chromium/Playwright sem modificar a identidade do navegador ou contornar verificações. Fecha convites dispensáveis de cadastro e baixa a mídia acessível no player. A consulta antiga do Instaloader continua no código como alternativa experimental, mas não é usada pelo botão do painel.
 
@@ -24,6 +24,14 @@ O Chromium abre em segundo plano. A coleta fecha convites de login que tenham bo
 
 Os arquivos ficam em `.data/media/`, e o histórico em `.data/library.sqlite`. Tracks de áudio e vídeo separados são reunidos pelo ffmpeg sem recodificação. O ffprobe verifica o vídeo recebido antes de marcá-lo como concluído. Downloads e sessões nunca entram no Git.
 
+## Editor de recortes (módulo 2)
+
+Abra **Editor de recortes** na navegação ou **Recortar** em um vídeo do acervo. Selecione o vídeo, escolha início e fim em segundos ou pelos controles deslizantes e use **Reproduzir trecho** para conferir a seleção. Os botões de marcação usam a posição atual do player. Dê um nome ao recorte e, se desejar, marque a opção de remover áudio antes de exportar.
+
+A exportação gera um novo MP4, com progresso e histórico no painel. Apenas uma exportação roda por vez. Depois de concluída, use **Ver** para reproduzir ou **Baixar** para salvar outra cópia. **Abrir ajuste** recupera as configurações para uma nova exportação. Os ajustes ainda não exportados são lembrados neste navegador, por vídeo.
+
+Os recortes ficam em `.data/clips/` e seu histórico em `.data/library.sqlite`. Os vídeos originais são preservados. O FFmpeg recodifica o trecho em H.264, mantendo a resolução com dimensões pares e áudio AAC quando solicitado; o ffprobe verifica o resultado. O ZIP da biblioteca continua contendo os originais do acervo. Este módulo oferece recorte temporal e áudio opcional; montagem de vários trechos, reprodução automática de estilos, legendas e publicação ficam para as próximas etapas.
+
 ## Testes
 
 ```sh
@@ -32,6 +40,6 @@ python3 -m unittest discover -s tests -p '*_test.py'
 npm run build
 ```
 
-O teste real com Instagram é separado dos testes locais: disponibilidade e exigências da plataforma podem mudar. Edição, recorte e publicação não fazem parte deste módulo.
+O teste real com Instagram é separado dos testes locais: disponibilidade e exigências da plataforma podem mudar. Os testes locais de edição verificam duração, áudio opcional, intervalos inválidos e preservação do original.
 
 Documentação: https://playwright.dev/python/docs/network e https://docs.astro.build/en/guides/integrations-guide/node/
