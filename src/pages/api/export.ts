@@ -5,11 +5,13 @@ import { mkdtemp,rm,stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve,join } from 'node:path';
 import { Readable } from 'node:stream';
-export const GET = async () => {
+export const GET = async ({url}) => {
  let folder:string|undefined;
  try {
+ const profile=url.searchParams.get('profile')||'';
+ if(profile&&!/^[a-zA-Z0-9_.]{1,30}$/.test(profile))return new Response('Perfil inválido.',{status:400});
  const {videos}=await getState();
- const files=videos.filter(v=>v.status==='downloaded').map(v=>v.filename);
+ const files=videos.filter(v=>v.status==='downloaded'&&(!profile||v.profile===profile)).map(v=>v.filename);
  if(!files.length)return new Response('Nenhum vídeo disponível para exportar.',{status:409});
  folder=await mkdtemp(join(tmpdir(),'dark-export-'));
  const output=join(folder,'dark-studio-videos.zip');
@@ -23,7 +25,7 @@ export const GET = async () => {
  });
  const info=await stat(output), stream=createReadStream(output), cleanup=folder;
  stream.once('close',()=>{void rm(cleanup,{recursive:true,force:true});});
- return new Response(Readable.toWeb(stream) as ReadableStream,{headers:{'Content-Type':'application/zip','Content-Disposition':'attachment; filename="dark-studio-videos.zip"','Content-Length':String(info.size),'Cache-Control':'no-store'}});
+ return new Response(Readable.toWeb(stream) as ReadableStream,{headers:{'Content-Type':'application/zip','Content-Disposition':`attachment; filename="${profile?'dark-studio-'+profile:'dark-studio-videos'}.zip"`,'Content-Length':String(info.size),'Cache-Control':'no-store'}});
  }catch{
  if(folder)await rm(folder,{recursive:true,force:true});
  return new Response('Não foi possível preparar o ZIP. Confira se os arquivos continuam no acervo e tente novamente.',{status:500});
