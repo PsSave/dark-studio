@@ -15,8 +15,8 @@ function sync(inputs=true){$('#template-stage').hidden=!current;$('#template-con
 function list(){picker().replaceChildren(new Option('Sem template — exportar só o recorte',''));for(const t of templates)picker().add(new Option(t.name,t.id));picker().value=current?.id||'';}
 async function choose(id:string,override:any=null){const v=++loadVersion;current=id?{...templates.find(t=>t.id===id),...override}:null;loaded=false;image=null;sync();if(!current)return;const img=new Image();img.onload=()=>{if(v!==loadVersion)return;image=img;loaded=true;sync();};img.onerror=()=>{if(v===loadVersion)info('Não foi possível abrir a arte.',true);};img.src='/api/templates?asset='+encodeURIComponent(id)+'&v='+encodeURIComponent(current.filename);try{localStorage.setItem('dark-active-template',id);}catch{}}
 export async function restoreTemplate(snapshot:any){if(snapshot){await choose(snapshot.id,snapshot);picker().value=snapshot.id;}else{await choose('');picker().value='';}}
-export function drawComposition(video:HTMLVideoElement,crop:Area,canDraw:boolean){
- const canvas=$('#composition') as HTMLCanvasElement;if(!canvas||!current)return;
+export function drawComposition(video:HTMLVideoElement,crop:Area,canDraw:boolean,target?:HTMLCanvasElement){
+ const canvas=target||$('#composition') as HTMLCanvasElement;if(!canvas||!current)return;
  canvas.width=540;canvas.height=960;const ctx=canvas.getContext('2d')!;ctx.scale(.5,.5);ctx.fillStyle='#080b10';ctx.fillRect(0,0,current.width,current.height);if(image&&current.layer==='front')ctx.drawImage(image,0,0,current.width,current.height);
  if(!valid()){if(image)ctx.drawImage(image,0,0,current.width,current.height);return;}const {x,y,slot_w:w,slot_h:h}=current;
  if(canDraw&&video.readyState>=2){

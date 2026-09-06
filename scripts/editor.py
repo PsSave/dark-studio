@@ -66,11 +66,15 @@ def recover(db):
                 db.execute("UPDATE clips SET status='interrupted',error='A exportação foi interrompida. Abra este recorte e exporte novamente.' WHERE id=?",(row['id'],))
     db.commit()
 
-def create(db,payload):
+def create(db,payload,batch_context=None):
     import fcntl
     with open(DATA/'editor-create.lock','w') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX)
         recover(db)
+        if not batch_context and db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='batches'").fetchone():
+            import batches
+            batches.recover(db)
+            if db.execute("SELECT 1 FROM batches WHERE status='running'").fetchone(): raise ValueError('Aguarde o lote em produção terminar.')
         if db.execute("SELECT 1 FROM clips WHERE status='rendering'").fetchone(): raise ValueError('Aguarde a exportação em andamento terminar.')
         if not isinstance(payload,dict) or not isinstance(payload.get('sourceId'),str): raise ValueError('Selecione um vídeo do acervo.')
         row,file=source(db,payload['sourceId']);meta=probe(file)
@@ -85,6 +89,9 @@ def create(db,payload):
             db.execute('UPDATE clips SET template_json=? WHERE id=?',(json.dumps(template),clip_id));db.commit()
         if crop:
             db.execute('UPDATE clips SET crop_x=?,crop_y=?,crop_w=?,crop_h=? WHERE id=?',(*crop,clip_id));db.commit()
+        if batch_context:
+            db.execute('UPDATE clips SET pid=? WHERE id=?',(os.getpid(),clip_id));db.commit()
+            return dict(db.execute('SELECT * FROM clips WHERE id=?',(clip_id,)).fetchone())
         try:
             child=subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'render',clip_id],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
             db.execute('UPDATE clips SET pid=? WHERE id=?',(child.pid,clip_id));db.commit()
@@ -152,7 +159,15 @@ if __name__=='__main__':
     db=connect()
     try:
         command=sys.argv[1]
-        if command=='state':
+        if command.startswith('batch-'):
+            import batches
+            batches.initialize(db)
+            if command=='batch-state': print(json.dumps(batches.state(db)))
+            elif command=='batch-create': print(json.dumps(batches.create(db,json.load(sys.stdin))))
+            elif command=='batch-retry': print(json.dumps(batches.retry(db,json.load(sys.stdin))))
+            elif command=='batch-approve': print(json.dumps(batches.approve(db,json.load(sys.stdin))))
+            elif command=='batch-run': batches.run(db,sys.argv[2])
+        elif command=='state':
             recover(db);print(json.dumps({'clips':[dict(r) for r in db.execute('SELECT * FROM clips ORDER BY created DESC')]}))
         elif command=='templates': print(json.dumps({'templates':[dict(r) for r in db.execute('SELECT * FROM templates ORDER BY rowid DESC')]}))
         elif command=='template-upload': print(json.dumps(templates.upload(db,DATA,json.load(sys.stdin))))

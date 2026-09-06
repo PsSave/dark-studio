@@ -1,7 +1,7 @@
 """Pack a validated manifest into a ZIP without recompressing video files."""
 import json, sys, zipfile
 from pathlib import Path
-root=Path(__file__).resolve().parents[1]/'.data/media'
+root=Path(__file__).resolve().parents[1]/('.data/clips' if '--clips' in sys.argv[2:] else '.data/media')
 manifest=json.loads(sys.stdin.read())
 with zipfile.ZipFile(sys.argv[1],'w',compression=zipfile.ZIP_STORED,allowZip64=True) as archive:
     for filename in manifest:

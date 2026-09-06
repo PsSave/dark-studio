@@ -34,6 +34,14 @@ Use **Salvar seleção** para guardar um modelo neste navegador com o nome infor
 
 **Salvar template** guarda nome, imagem e encaixe no computador, em `.data/templates/` e no SQLite. Escolha esse template nos próximos vídeos para reutilizá-lo. A prévia mostra a composição durante a reprodução; **Exportar composição** gera o MP4 vertical completo. **Sem template** volta a exportar apenas o recorte. As configurações usadas ficam registradas em cada exportação. Não há integração de conta Canva: envie a imagem exportada de lá. Esta versão usa uma arte estática e um espaço retangular, sem deformação de perspectiva. O canal alfa da arte permite bordas e janelas de formatos irregulares.
 
+## Criativos e produção em lote (módulo 3 local)
+
+No Editor, configure a seleção do vídeo e, se desejar, um template. Use **Aplicar a outros vídeos** para abrir as prévias paginadas do acervo. Selecione vídeos individualmente ou todos de um perfil, dê um nome ao lote e confirme a produção. A seleção do vídeo é adaptada proporcionalmente às dimensões de cada original; as prévias mostram um quadro e não garantem o enquadramento em toda a duração.
+
+A tela **Criativos** acompanha uma fila sequencial, com vídeos prontos, pendentes e falhas, agrupados por lote e pelo template usado. **Retomar pendentes** reutiliza os resultados concluídos e tenta os restantes novamente. A receita da edição fica registrada no lote, incluindo a arte e a ordem das camadas. Envios repetidos da mesma confirmação não criam lotes duplicados.
+
+Abra **Revisar vídeo** para assistir e marcar o resultado como aprovado. A aprovação pode ser retirada. Baixe cada arquivo ou use **Baixar lote (.zip)** para reunir os concluídos. Os originais do acervo continuam preservados, e a biblioteca mantém seu ZIP separado. Se fechar o computador durante a produção, o lote pode ser retomado depois. Agendamento e publicação no Instagram ainda não estão implementados; aprovar não publica o vídeo.
+
 ## Testes
 
 ```sh
