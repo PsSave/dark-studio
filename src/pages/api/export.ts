@@ -1,3 +1,4 @@
+import {editor} from '../../lib/editor.mjs';
 import { getState } from '../../lib/collector.mjs';
 import { spawn } from 'node:child_process';
 import { existsSync,createReadStream } from 'node:fs';
@@ -10,14 +11,15 @@ export const GET = async ({url}) => {
  try {
  const profile=url.searchParams.get('profile')||'';
  if(profile&&!/^[a-zA-Z0-9_.]{1,30}$/.test(profile))return new Response('Perfil inválido.',{status:400});
- const {videos}=await getState();
- const files=videos.filter(v=>v.status==='downloaded'&&(!profile||v.profile===profile)).map(v=>v.filename);
+ const batchId=url.searchParams.get('batch');let files;
+ if(batchId){const data=await editor('batch-state'),batch=data.batches.find(b=>b.id===batchId);if(!batch)return new Response('Lote não encontrado.',{status:404});files=batch.items.filter(i=>i.status==='completed'&&i.clip_status==='completed').map(i=>i.filename);}
+ else{const {videos}=await getState();files=videos.filter(v=>v.status==='downloaded'&&(!profile||v.profile===profile)).map(v=>v.filename);}
  if(!files.length)return new Response('Nenhum vídeo disponível para exportar.',{status:409});
  folder=await mkdtemp(join(tmpdir(),'dark-export-'));
  const output=join(folder,'dark-studio-videos.zip');
  const python=process.env.COLLECTOR_PYTHON || (existsSync('.venv/bin/python')?resolve('.venv/bin/python'):'python3');
  await new Promise<void>((done,reject)=>{
-  const child=spawn(python,[resolve('scripts/export_zip.py'),output],{stdio:['pipe','ignore','ignore']});
+  const child=spawn(python,[resolve('scripts/export_zip.py'),output,...(batchId?['--clips']:[])],{stdio:['pipe','ignore','ignore']});
   const timer=setTimeout(()=>{child.kill();reject(new Error('Tempo excedido'));},120000);
   child.once('error',e=>{clearTimeout(timer);reject(e);});
   child.once('close',code=>{clearTimeout(timer);code===0?done():reject(new Error('Falha ao criar pacote'));});

@@ -1,10 +1,10 @@
 # Dark Studio
 
-**Uma biblioteca local para reunir Reels públicos do Instagram e baixar os vídeos pelo navegador.**
+**Reúna referências, edite vídeos com seus templates e baixe criativos prontos para publicar.**
 
-Informe um perfil, escolha a quantidade e acompanhe a coleta no painel. Os arquivos ficam no seu computador e podem ser exportados juntos em ZIP. Esta documentação cobre a **primeira versão — módulo 1**, disponível na branch `main`.
+Informe um perfil, escolha a quantidade e acompanhe a coleta no painel. Os arquivos ficam no seu computador e podem ser exportados juntos em ZIP. Esta documentação cobre a **primeira versão com Biblioteca, Editor e Criativos**, disponível na branch `main`. Não há agendamento ou publicação automática: você baixa os resultados e faz as postagens.
 
-## O que o módulo 1 faz
+## Biblioteca de referência
 
 - Recebe um @ ou link de perfil do Instagram.
 - Permite solicitar 5, 10, 25, 50 vídeos ou todos os acessíveis.
@@ -113,7 +113,32 @@ O servidor é local e não tem autenticação. Mantenha-o acessível apenas no p
 4. Confira os vídeos que aparecem **No acervo**.
 5. Use o download individual ou **Baixar todos (.zip)**.
 
-**No acervo significa que o vídeo já está salvo no computador.** O botão de download permite salvar uma cópia pelo navegador. O ZIP inclui todos os vídeos disponíveis da biblioteca, organizados por perfil, e não somente os da última coleta ou do filtro visível. Adicionar outro perfil mantém os anteriores no acervo. Nesta versão, os perfis aparecem juntos no painel e ficam separados por pastas no disco.
+**No acervo significa que o vídeo já está salvo no computador.** O botão de download permite salvar uma cópia pelo navegador. As abas separam os perfis sem apagar os anteriores. Na aba Todos, o ZIP reúne o acervo; ao escolher um perfil, **Baixar perfil (.zip)** reúne os originais daquele perfil. O filtro de status não limita o ZIP.
+
+## 6. Editor: crop e templates
+
+Abra **Editor** na navegação ou **Abrir editor** em um vídeo da biblioteca. Desenhe um retângulo sobre a imagem, mova a seleção e ajuste os cantos. Os campos de posição e tamanho em pixels permitem ajustes precisos. A prévia mostra apenas a área selecionada, mantendo toda a duração do vídeo.
+
+Use **Salvar seleção** para guardar um modelo neste navegador com o nome informado. Ao aplicar em outro vídeo, a área é adaptada proporcionalmente às dimensões da imagem; confira e ajuste antes de exportar. O modelo não identifica o gameplay automaticamente nem acompanha objetos em movimento.
+
+**Salvar em Criativos** cria um MP4 novo, com áudio opcional, preservando o original. Os recortes ficam em `.data/clips/`, com histórico em `.data/library.sqlite`. A exportação usa dimensões e coordenadas pares, ajustando no máximo um pixel para compatibilidade. O ZIP da biblioteca contém os originais. Na seção **Templates de composição**, importe uma arte PNG, JPG ou WebP de até 20 MB. Ela é preparada em 1080 × 1920 sem distorção, com margens quando necessário. O gameplay ocupa o espaço retangular que você desenha, move e redimensiona. A ordem padrão é **Arte por cima · vídeo por trás**: preserve transparência no PNG para abrir a janela do vídeo. Assim a moldura pode cobrir as bordas do gameplay. Também há a opção de colocar o vídeo por cima da arte. Use **Preencher** para ocupar todo o espaço cortando sobras, ou **Mostrar tudo** para preservar o recorte inteiro com margens pretas.
+
+**Salvar template** guarda nome, imagem e encaixe no computador, em `.data/templates/` e no SQLite. Escolha esse template nos próximos vídeos para reutilizá-lo. A prévia mostra a composição durante a reprodução; **Salvar em Criativos** gera o MP4 vertical completo. **Sem template** volta a exportar apenas o recorte. As configurações usadas ficam registradas em cada exportação. Não há integração de conta Canva: envie a imagem exportada de lá. Esta versão usa uma arte estática e um espaço retangular, sem deformação de perspectiva. O canal alfa da arte permite bordas e janelas de formatos irregulares.
+
+## 7. Criativos e produção em lote
+
+No Editor, configure a seleção do vídeo e, se desejar, um template. Use **Aplicar a outros vídeos** para abrir as prévias paginadas do acervo. Selecione vídeos individualmente ou todos de um perfil, dê um nome ao lote e confirme a produção. A seleção do vídeo é adaptada proporcionalmente às dimensões de cada original; as prévias mostram um quadro e não garantem o enquadramento em toda a duração.
+
+A tela **Criativos** acompanha uma fila sequencial, com vídeos prontos, pendentes e falhas, agrupados por lote e pelo template usado. **Retomar pendentes** reutiliza os resultados concluídos e tenta os restantes novamente. A receita da edição fica registrada no lote, incluindo a arte e a ordem das camadas. Envios repetidos da mesma confirmação não criam lotes duplicados.
+
+Abra **Revisar vídeo** para assistir e marcar o resultado como aprovado. A aprovação pode ser retirada. Baixe cada arquivo ou use **Baixar lote (.zip)** para reunir os concluídos. Os originais do acervo continuam preservados, e a biblioteca mantém seu ZIP separado. Se fechar o computador durante a produção, o lote pode ser retomado depois. Agendamento e publicação no Instagram ainda não estão implementados; aprovar não publica o vídeo.
+
+
+### Corrigir um criativo individual
+
+Em Criativos, clique em **Ajustar no editor**. A seleção, o template e o áudio usados são carregados para você corrigir. Clique em **Salvar nova versão**: o vídeo anterior continua disponível até a exportação terminar. Quando pronta, a nova versão substitui aquele item e volta para revisão; o arquivo anterior permanece no histórico de exportações. Os demais criativos não mudam.
+
+Você também pode editar um único vídeo e clicar em **Salvar em Criativos**, sem criar um lote. Use os filtros de revisão e aprovação para organizar os resultados. Aprovar é apenas uma marca de revisão local.
 
 ### Onde ficam os arquivos?
 
@@ -122,7 +147,9 @@ Dentro da pasta `dark-studio`:
 ```text
 .data/
 ├── media/             # Vídeos organizados por perfil
-├── library.sqlite     # Histórico da biblioteca
+├── clips/             # Criativos e histórico de exportações
+├── templates/         # Artes importadas
+├── library.sqlite     # Biblioteca, templates e lotes
 └── browsers/          # Chromium usado pelo coletor
 ```
 
@@ -133,7 +160,7 @@ cd ~/dark-studio
 explorer.exe .data
 ```
 
-Isso abre a pasta no Explorador do Windows. Vídeos, banco de dados e sessões ficam fora do Git. Faça uma cópia de `.data/media/` e `.data/library.sqlite` se quiser guardar um backup do acervo e histórico.
+Isso abre a pasta no Explorador do Windows. Vídeos, banco de dados e sessões ficam fora do Git. Com coletas e exportações encerradas, copie a pasta `.data/` para guardar o acervo, templates, criativos e histórico. As seleções rápidas salvas no navegador ficam no armazenamento local desse navegador.
 
 ## Limites e dúvidas frequentes
 
@@ -153,9 +180,9 @@ Isso abre a pasta no Explorador do Windows. Vídeos, banco de dados e sessões f
 
 Use os vídeos respeitando as permissões de uso dos criadores.
 
-## Atualizar a primeira versão
+## Atualizar o projeto
 
-Pare o painel depois que a coleta terminar e execute dentro do projeto:
+Pare o painel depois que as coletas e exportações terminarem e execute dentro do projeto:
 
 ```bash
 git pull --ff-only

@@ -1,14 +1,17 @@
+import {editor} from '../../lib/editor.mjs';
 import { getState } from '../../lib/collector.mjs';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { Readable } from 'node:stream';
 export const GET = async ({url,request}) => {
- const {videos} = await getState();
- const video = videos.find(v=>v.id===url.searchParams.get('id') && v.status==='downloaded');
+ const isClip=url.searchParams.get('kind')==='clip';
+ const videos=isClip?(await editor('state')).clips:(await getState()).videos;
+ const video = videos.find(v=>v.id===url.searchParams.get('id') && v.status===(isClip?'completed':'downloaded'));
  if(!video) return new Response('Vídeo não encontrado',{status:404});
- const file = resolve('.data/media',video.filename);
- if(!file.startsWith(resolve('.data/media')+'/')) return new Response(null,{status:400});
+ const base=resolve(isClip?'.data/clips':'.data/media');
+ const file = resolve(base,video.filename);
+ if(!file.startsWith(base+'/')) return new Response(null,{status:400});
  try {
  const {size} = await stat(file);
  const headers = {'Content-Type':'video/mp4','Accept-Ranges':'bytes','Cache-Control':'private, no-store'};
